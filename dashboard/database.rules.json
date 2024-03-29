@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "users": {
+      ".read": true, 
+      ".indexOn": ["username", "public_key"]
+    }
+  }
+}
