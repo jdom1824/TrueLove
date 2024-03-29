@@ -38,3 +38,19 @@ Now that the Docker image is loaded, you can run the container using the followi
 docker run -it truelove /bin/bash  
 ./Init
 ```
+
+4. Register User
+
+```bash
+No users.
+Enter your username to register:
+```
+
+4. KEEP YOUR PRIVATE KEY IN A SAFE PLACE FOR FUTURE REWARDS
+
+```bash
+ID: 1, Username: user, Public Key: XXXXX, Private Key: XXXX
+```
+
+# Contribution
+We welcome contributions from the community to improve and enhance the TrueLove project. Whether you're fixing a bug, adding a new feature, or improving the documentation, your efforts can help make TrueLove even better for everyone. To contribute, simply fork the repository, make your changes, and submit a pull request. Don't hesitate to reach out if you have any questions or need assistance. Together, let's make TrueLove the best it can be!
