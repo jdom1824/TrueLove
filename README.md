@@ -12,6 +12,11 @@ This repository contains the source code for the TrueLove API.
 
 - Python 3.6 or higher
 - Firebase project with Realtime Database enabled
+- Docker:
+  - **MacOS**: Follow the installation instructions on the [Docker Desktop for Mac](https://docs.docker.com/desktop/mac/install/) page.
+  - **Windows**: Follow the installation instructions on the [Docker Desktop for Windows](https://docs.docker.com/desktop/windows/install/) page.
+  - **Linux**: Refer to the installation instructions for your specific Linux distribution on the [Docker Engine](https://docs.docker.com/engine/install/) page.
+
 
 ## Installation
 
