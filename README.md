@@ -1,6 +1,6 @@
 # Run TrueLove 
 
-This repository contains the source code for the TrueLove API.
+This repository contains the source code for the TrueLove
 
 ## Features
 
@@ -34,7 +34,7 @@ cd TrueLove
 Use the following command to load the Docker image from the downloaded .tar file:
 
 ```bash
-docker load -i file.tar
+docker load -i TrueLove.tar
 ```
 4. Run the Docker Container
 Now that the Docker image is loaded, you can run the container using the following command:
