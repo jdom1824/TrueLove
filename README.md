@@ -1,4 +1,4 @@
-# RunTrueLove 
+# Run TrueLove 
 
 This repository contains the source code for the TrueLove API.
 
