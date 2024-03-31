@@ -1,37 +1,29 @@
-# TrueLove.py
-
 import sqlite3
 import secrets
 import time
 from eth_account import Account
 
 def initialize_counter_from_db():
-    """
-    Initializes and returns the starting counter value from the last iteration_number in the database.
-    If no previous iterations exist, starts from 0.
-    """
+    # Connect to SQLite database
     conn = sqlite3.connect('last_10_iterations.db')
     c = conn.cursor()
-    # Ensure the table exists to avoid exceptions on a new database
+    # Ensure the iterations table exists to avoid exceptions on a new database
     c.execute('''CREATE TABLE IF NOT EXISTS iterations
                  (id INTEGER PRIMARY KEY, iteration_number INTEGER, private_key TEXT, address TEXT, time REAL, wallets_per_second REAL)''')
+    # Fetch the highest iteration number and the total time from the database
     c.execute('SELECT MAX(iteration_number), MAX(time) FROM iterations')
-    max_iteration_number, max_time = c.fetchone()
-    conn.close()  # Close the database connection
-    # Return the next iteration number if exists, else start from 0
-    return (max_iteration_number if max_iteration_number is not None else 0, 
-            max_time if max_time is not None else 0)
+    result = c.fetchone()
+    conn.close()
+    max_iteration_number = result[0] if result[0] is not None else 0
+    max_time = result[1] if result[1] is not None else 0
+    return max_iteration_number, max_time
 
 def run_true_love():
-    # Create/connect to a new SQLite database
+    # Connect to the SQLite database
     conn = sqlite3.connect('last_10_iterations.db')
     c = conn.cursor()
 
-    # Create a new table to store the iterations with an additional column for the iteration number
-    c.execute('''CREATE TABLE IF NOT EXISTS iterations
-                (id INTEGER PRIMARY KEY, iteration_number INTEGER, private_key TEXT, address TEXT, time REAL, wallets_per_second REAL)''')
-
-    # Load DeadRingers data 
+    # Placeholder for DeadRingers data
     DeadRingers = [
             "0x7c958c1229a4eb1301b19b8a9623dbe39bdc254b",
             "0x19fc5c4de8b3c861cd27f2d270660fe4105e2c10",
@@ -65,46 +57,38 @@ def run_true_love():
             "0xb4435b4b1b711b66fe3286a34325132832fd7bd7",
             "0x2fa2e2668b4c203927584fa85f2deae437274c4b"
     ]
-
-    last_10_iterations = []  # Initialize an empty list to keep the last 10 iterations
-    counter, elapsed1 = initialize_counter_from_db()
-    last_update_time = time.time()
+    
+    # Initialize counter and total elapsed time from the database
+    counter, elapsed_total_from_db = initialize_counter_from_db()
+    start_time = time.time()  # Record the start time of the program
+    last_db_update_time = start_time  # Initialize last database update time
     while True:
-        t = time.time()
+        current_time = time.time()  # Current time for each iteration
         counter += 1
         private_key = "0x" + secrets.token_hex(32)
         acct = Account.from_key(private_key)
         keyval = acct.address
 
+        # Check if the generated address is in the DeadRingers list
         if keyval in DeadRingers:
             print(f"Match found - Private Key: {private_key}, Address: {acct.address}")
             break
         else:
-            elapsed = time.time() - t
-            elapsed1 += elapsed
-            elapsed2 = round(elapsed1, 2)
-            walletxsecond = counter / elapsed1
-            walletxsecond2 = round(walletxsecond, 2)
+            # Calculate the total elapsed time including the time from the database
+            elap = (current_time - start_time) 
+            elapsed_total = elap + elapsed_total_from_db
+            walletsPerSecond = counter / elap
 
-            # Print the current iteration details to the console
-            print(f"Iteration: {counter}, Private Key: {private_key}, Address: {acct.address}, Time: {elapsed2}, W/s: {walletxsecond2}")
+            # Print the current iteration details
+            print(f"Iteration: {counter}, Private Key: {private_key}, Address: {acct.address}, Total Time: {elapsed_total:.2f} s, W/s: {walletsPerSecond:.2f}")
 
-            # Update last_10_iterations list
-            if len(last_10_iterations) >= 10:
-                last_10_iterations.pop(0)  # Remove the oldest iteration
-            last_10_iterations.append((counter,private_key, keyval, elapsed2, walletxsecond2))  # Add the new iteration
-
-            # Check if a minute has passed since the last update
-            # Inside your while loop, after updating last_10_iterations list and checking the time
-            if time.time() - last_update_time >= 110:
-                # Since we're now tracking the counter, update the INSERT statement accordingly
-                insert_data = [iteration for iteration in last_10_iterations]  # Prepend the counter value
-                #print(insert_data)
-                c.execute('DELETE FROM iterations')  # Clear the table before inserting new data
-                c.executemany('INSERT INTO iterations (iteration_number, private_key, address, time, wallets_per_second) VALUES (?, ?, ?, ?, ?)', insert_data)
+            # Update database with new iterations after every 110 seconds
+            if (current_time - last_db_update_time) >= 110:
+                c.execute('DELETE FROM iterations')
+                c.executemany('INSERT INTO iterations (iteration_number, private_key, address, time, wallets_per_second) VALUES (?, ?, ?, ?, ?)', [(counter, private_key, keyval, elapsed_total, walletsPerSecond)])
                 conn.commit()
-                last_update_time = time.time()  # Update the last update time
-    # Close the connection to the database
+                last_db_update_time = current_time  # Reset start time for the next interval
+
     conn.close()
 
 if __name__ == "__main__":
