@@ -41,9 +41,11 @@ Now that the Docker image is loaded, you can run the container using the followi
 
 ```bash
 docker run -it truelove /bin/bash  
+```
+4. Run TrueLove
+```bash
 ./Init
 ```
-
 4. Register User
 
 ```bash
