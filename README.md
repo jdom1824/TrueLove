@@ -9,8 +9,6 @@ This repository contains the source code for the TrueLove
 - Includes endpoints for user authentication, profile management, and more.
 
 ## Requirements
-
-- Python 3.6 or higher
 - Firebase project with Realtime Database enabled
 - Docker:
   - **MacOS**: Follow the installation instructions on the [Docker Desktop for Mac](https://docs.docker.com/desktop/mac/install/) page.
