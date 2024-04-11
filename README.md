@@ -40,7 +40,7 @@ docker load -i TrueLove.tar
 Now that the Docker image is loaded, you can run the container using the following command:
 
 ```bash
-docker run -it truelove /bin/bash  
+docker run -it truelove
 ```
 4. Run TrueLove
 ```bash
