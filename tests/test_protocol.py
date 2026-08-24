@@ -56,7 +56,6 @@ class ProtocolTests(unittest.TestCase):
                     "counter": 4,
                     "operations": 5,
                     "resultDigest": hashlib.sha256(b"tampered").hexdigest(),
-                    "signature": "invalid",
                 },
             )
         self.assertEqual(error.exception.code, 409)

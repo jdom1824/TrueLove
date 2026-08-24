@@ -7,7 +7,6 @@ This is the dependency-free coordinator MVP intended to run on the Raspberry Pi 
 From the repository root:
 
 ```bash
-python3 -m pip install -r requirements.txt
 python3 -m coordinator
 ```
 

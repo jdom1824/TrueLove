@@ -1,14 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["jobId", "nodeId", "counter", "operations", "resultDigest", "signature"],
+  "required": ["jobId", "nodeId", "counter", "operations", "resultDigest"],
   "properties": {
     "jobId": {"type": "string", "minLength": 1},
     "nodeId": {"type": "string", "minLength": 1, "maxLength": 128},
     "counter": {"type": "integer", "minimum": 0},
     "operations": {"type": "integer", "minimum": 1},
-    "resultDigest": {"type": "string", "minLength": 64, "maxLength": 64},
-    "signature": {"type": "string", "minLength": 80}
+    "resultDigest": {"type": "string", "minLength": 64, "maxLength": 64}
   },
   "additionalProperties": false
 }

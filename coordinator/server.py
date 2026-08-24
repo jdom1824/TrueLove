@@ -11,14 +11,12 @@ import os
 import secrets
 import sqlite3
 import time
-import base64
 import hashlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.getenv("TRUELOVE_DB", ROOT / "data" / "scan.db"))
@@ -41,7 +39,6 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS nodes (
                 node_id TEXT PRIMARY KEY,
-                public_key TEXT,
                 first_seen REAL NOT NULL,
                 last_seen REAL NOT NULL,
                 jobs_claimed INTEGER NOT NULL DEFAULT 0,
@@ -71,9 +68,6 @@ def init_db():
             """
         )
         # Keep the Raspberry Pi MVP upgradeable between protocol revisions.
-        columns = {row[1] for row in connection.execute("PRAGMA table_info(nodes)")}
-        if "public_key" not in columns:
-            connection.execute("ALTER TABLE nodes ADD COLUMN public_key TEXT")
         columns = {row[1] for row in connection.execute("PRAGMA table_info(proofs)")}
         if "counter" not in columns:
             connection.execute("ALTER TABLE proofs ADD COLUMN counter INTEGER NOT NULL DEFAULT 0")
@@ -141,21 +135,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def heartbeat(self, data):
         node_id = str(data["nodeId"]).strip()
-        public_key = str(data.get("publicKey", "")).strip()
         if not node_id or len(node_id) > 128:
             raise ValueError("invalid nodeId")
-        if public_key:
-            try:
-                if len(base64.b64decode(public_key, validate=True)) != 32:
-                    raise ValueError
-            except (ValueError, base64.binascii.Error):
-                raise ValueError("invalid publicKey")
         now = time.time()
         with db() as connection:
             connection.execute(
-                "INSERT INTO nodes(node_id, public_key, first_seen, last_seen) VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(node_id) DO UPDATE SET public_key=COALESCE(excluded.public_key, nodes.public_key), last_seen=excluded.last_seen",
-                (node_id, public_key or None, now, now),
+                "INSERT INTO nodes(node_id, first_seen, last_seen) VALUES (?, ?, ?) "
+                "ON CONFLICT(node_id) DO UPDATE SET last_seen=excluded.last_seen",
+                (node_id, now, now),
             )
         return self.send_json(HTTPStatus.OK, {"accepted": True, "nodeId": node_id, "serverTime": now})
 
@@ -186,7 +173,6 @@ class Handler(BaseHTTPRequestHandler):
         counter = int(data["counter"])
         operations = int(data["operations"])
         digest = str(data["resultDigest"])
-        signature = str(data["signature"])
         if counter < 0 or operations <= 0 or counter + 1 != operations or not digest or len(digest) > 256:
             raise ValueError("invalid proof")
         now = time.time()
@@ -199,17 +185,6 @@ class Handler(BaseHTTPRequestHandler):
             ).hexdigest()
             if digest != expected:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof digest invalid"})
-            node = connection.execute("SELECT public_key FROM nodes WHERE node_id=?", (node_id,)).fetchone()
-            if not node or not node["public_key"]:
-                return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "node has no public key"})
-            signed = {key: data[key] for key in ("jobId", "nodeId", "counter", "operations", "resultDigest")}
-            message = json.dumps(signed, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            try:
-                Ed25519PublicKey.from_public_bytes(base64.b64decode(node["public_key"])).verify(
-                    base64.b64decode(signature, validate=True), message
-                )
-            except (ValueError, base64.binascii.Error):
-                return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof signature invalid"})
             try:
                 connection.execute(
                     "INSERT INTO proofs(job_id, node_id, counter, operations, result_digest, submitted_at, status) "
