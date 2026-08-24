@@ -31,4 +31,4 @@ POST /api/jobs/claim
 POST /api/proofs
 ```
 
-The current proof handler validates job ownership, expiry, duplicate submission and payload shape. The cryptographic validator will be added as the protocol is finalized; this MVP intentionally does not generate or receive private keys.
+The current proof handler validates job ownership, expiry, duplicate submission, payload shape and the reproducible digest defined in `docs/PROTOCOL.md`. This MVP intentionally does not generate or receive private keys.

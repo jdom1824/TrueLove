@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["jobId", "targetId", "challenge", "algorithm"],
+  "properties": {
+    "jobId": {"type": "string", "minLength": 1},
+    "targetId": {"type": "integer", "minimum": 1, "maximum": 31},
+    "challenge": {"type": "string", "minLength": 1},
+    "algorithm": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

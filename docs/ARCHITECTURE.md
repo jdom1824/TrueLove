@@ -119,7 +119,7 @@ Ejemplo de prueba:
   "jobId": "scan-000482",
   "nodeId": "anonymous-node-042",
   "operations": 18440221,
-  "resultDigest": "0xabc...",
+  "resultDigest": "sha256(challenge:counter)",
   "counter": 192,
   "submittedAt": "2026-08-23T18:22:00Z"
 }
@@ -175,8 +175,8 @@ GET  /api/targets
 GET  /api/nodes
 POST /api/session/start
 POST /api/heartbeat
-POST /api/job/claim
-POST /api/proof
+POST /api/jobs/claim
+POST /api/proofs
 POST /api/session/stop
 ```
 

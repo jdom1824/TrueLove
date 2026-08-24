@@ -57,6 +57,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_id TEXT NOT NULL UNIQUE,
                 node_id TEXT NOT NULL,
+                counter INTEGER NOT NULL,
                 operations INTEGER NOT NULL,
                 result_digest TEXT NOT NULL,
                 submitted_at REAL NOT NULL,
@@ -163,20 +164,26 @@ class Handler(BaseHTTPRequestHandler):
     def proof(self, data):
         job_id = str(data["jobId"])
         node_id = str(data["nodeId"])
+        counter = int(data["counter"])
         operations = int(data["operations"])
         digest = str(data["resultDigest"])
-        if operations <= 0 or not digest or len(digest) > 256:
+        if counter < 0 or operations <= 0 or counter + 1 != operations or not digest or len(digest) > 256:
             raise ValueError("invalid proof")
         now = time.time()
         with db() as connection:
             job = connection.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
             if not job or job["node_id"] != node_id or job["expires_at"] < now:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "job invalid or expired"})
+            expected = __import__("hashlib").sha256(
+                f"{job['challenge']}:{counter}".encode("utf-8")
+            ).hexdigest()
+            if digest != expected:
+                return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof digest invalid"})
             try:
                 connection.execute(
-                    "INSERT INTO proofs(job_id, node_id, operations, result_digest, submitted_at, status) "
-                    "VALUES (?, ?, ?, ?, ?, 'accepted')",
-                    (job_id, node_id, operations, digest, now),
+                    "INSERT INTO proofs(job_id, node_id, counter, operations, result_digest, submitted_at, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, 'accepted')",
+                    (job_id, node_id, counter, operations, digest, now),
                 )
             except sqlite3.IntegrityError:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof already submitted"})
