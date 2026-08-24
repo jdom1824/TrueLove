@@ -9,6 +9,8 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from coordinator import server
+from worker.client import run_once as run_client_once
+from worker.search_engine import DemoSearchEngine
 from worker.runner import run_for
 from worker.simulator import run_once
 
@@ -65,6 +67,13 @@ class ProtocolTests(unittest.TestCase):
         result = run_for(self.url, "runner-test", duration_seconds=1, operations=2, heartbeat_interval=1)
         self.assertGreater(result["jobs"], 0)
         self.assertEqual(result["jobs"], result["proofs"])
+
+    def test_pluggable_search_client_uses_assigned_range(self):
+        result = run_client_once(self.url, "client-test", DemoSearchEngine(),
+                                 target_id=17, range_start=100, range_end=109)
+        self.assertTrue(result["proof"]["accepted"])
+        self.assertEqual(result["job"]["rangeStart"], 100)
+        self.assertEqual(result["job"]["rangeEnd"], 109)
 
 
 if __name__ == "__main__":

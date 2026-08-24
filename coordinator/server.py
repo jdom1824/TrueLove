@@ -51,6 +51,8 @@ def init_db():
                 target_id INTEGER NOT NULL,
                 challenge TEXT NOT NULL,
                 algorithm TEXT NOT NULL,
+                range_start INTEGER NOT NULL DEFAULT 0,
+                range_end INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 expires_at REAL NOT NULL
@@ -71,6 +73,11 @@ def init_db():
         columns = {row[1] for row in connection.execute("PRAGMA table_info(proofs)")}
         if "counter" not in columns:
             connection.execute("ALTER TABLE proofs ADD COLUMN counter INTEGER NOT NULL DEFAULT 0")
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
+        if "range_start" not in columns:
+            connection.execute("ALTER TABLE jobs ADD COLUMN range_start INTEGER NOT NULL DEFAULT 0")
+        if "range_end" not in columns:
+            connection.execute("ALTER TABLE jobs ADD COLUMN range_end INTEGER NOT NULL DEFAULT 0")
 
 
 def payload(handler: BaseHTTPRequestHandler):
@@ -152,6 +159,10 @@ class Handler(BaseHTTPRequestHandler):
         job_id = f"job-{secrets.token_hex(8)}"
         challenge = secrets.token_hex(32)
         target_id = int(data.get("targetId", (int(now) % 31) + 1))
+        range_start = int(data.get("rangeStart", 0))
+        range_end = int(data.get("rangeEnd", range_start + 999))
+        if range_start < 0 or range_end < range_start or range_end - range_start > 10_000_000:
+            raise ValueError("invalid search range")
         with db() as connection:
             connection.execute(
                 "INSERT INTO nodes(node_id, first_seen, last_seen, jobs_claimed) VALUES (?, ?, ?, 1) "
@@ -159,12 +170,14 @@ class Handler(BaseHTTPRequestHandler):
                 (node_id, now, now, now),
             )
             connection.execute(
-                "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, 'assigned', ?, ?)",
-                (job_id, node_id, target_id, challenge, ALGORITHM_VERSION, now, now + 300),
+                "INSERT INTO jobs(job_id, node_id, target_id, challenge, algorithm, range_start, range_end, status, created_at, expires_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'assigned', ?, ?)",
+                (job_id, node_id, target_id, challenge, ALGORITHM_VERSION, range_start, range_end, now, now + 300),
             )
         return self.send_json(
             HTTPStatus.OK,
-            {"jobId": job_id, "targetId": target_id, "challenge": challenge, "algorithm": ALGORITHM_VERSION},
+            {"jobId": job_id, "targetId": target_id, "challenge": challenge, "algorithm": ALGORITHM_VERSION,
+             "rangeStart": range_start, "rangeEnd": range_end},
         )
 
     def proof(self, data):
