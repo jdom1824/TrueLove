@@ -18,7 +18,7 @@ from worker.search_engine import (
 )
 
 
-SANDBOX_ADDRESS = "0x4b5be3936ed734aeb882dba007160d2c5e5b32c6"
+SANDBOX_ADDRESS = "0x60a95e05db8953103bf385151b609e2f6731a3a7"
 
 
 class SandboxSearchEngineUnitTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class SandboxSearchEngineUnitTests(unittest.TestCase):
 
     def test_match_address_when_target_matches(self):
         engine = SandboxSearchEngine()
-        result = engine.search("challenge", 0, 0)
+        result = engine.search("challenge", 100, 100)
         self.assertIsNotNone(result.match_address)
         self.assertEqual(result.match_address.lower(), SANDBOX_ADDRESS)
 
@@ -151,7 +151,7 @@ class SandboxIntegrationTests(unittest.TestCase):
         engine = SandboxSearchEngine()
         result = run_client_once(
             self.url, "sandbox-match", engine,
-            target_id=1, range_start=0, range_end=0,
+            target_id=1, range_start=100, range_end=100,
         )
         self.assertEqual(
             result["result"]["match_address"].lower(), SANDBOX_ADDRESS
@@ -162,7 +162,7 @@ class SandboxIntegrationTests(unittest.TestCase):
         engine = SandboxSearchEngine()
         result = run_client_once(
             self.url, "sandbox-leak", engine,
-            target_id=1, range_start=0, range_end=0,
+            target_id=1, range_start=100, range_end=100,
         )
         proof_str = json.dumps(result["proof"])
         self.assertNotIn("private", proof_str.lower())
@@ -173,7 +173,7 @@ class SandboxIntegrationTests(unittest.TestCase):
         engine = SandboxSearchEngine()
         run_client_once(
             self.url, "sandbox-db", engine,
-            target_id=1, range_start=0, range_end=0,
+            target_id=1, range_start=100, range_end=100,
         )
         with sqlite3.connect(server.DB_PATH) as conn:
             rows = conn.execute("SELECT * FROM proofs").fetchall()
@@ -187,7 +187,7 @@ class SandboxIntegrationTests(unittest.TestCase):
         engine = SandboxSearchEngine()
         result = run_client_once(
             self.url, "sandbox-job-leak", engine,
-            target_id=1, range_start=0, range_end=0,
+            target_id=1, range_start=100, range_end=100,
         )
         job_str = json.dumps(result["job"])
         self.assertNotIn("private", job_str.lower())
@@ -210,7 +210,7 @@ class SandboxVsDemoComparisonTests(unittest.TestCase):
 
     def test_sandbox_has_match_address(self):
         engine = SandboxSearchEngine()
-        result = engine.search("x", 0, 0)
+        result = engine.search("x", 100, 100)
         self.assertIsNotNone(result.match_address)
 
 

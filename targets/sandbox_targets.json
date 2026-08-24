@@ -1,6 +1,0 @@
-{
-  "description": "Sandbox test targets for local development. Contains only the deterministic test wallet address.",
-  "targets": [
-    {"id": 1, "address": "0x4b5BE3936ED734aEB882dba007160D2C5E5B32C6"}
-  ]
-}

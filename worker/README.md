@@ -12,7 +12,7 @@ the worker must never log or persist private material.
 Run the safe integration client:
 
 ```bash
-python3 -m worker.client --target-id 17 --range-start 100 --range-end 109
+python3 -m worker.client --target-id 17 --range-start 0 --range-end 199
 ```
 
 To call the user algorithm boundary instead:

@@ -32,7 +32,7 @@ The worker supports three pluggable engines via `--engine`:
 
 ### Sandbox engine
 
-The sandbox engine derives a deterministic test wallet address using PBKDF2 + eth_account. The private key is never stored, logged, or transmitted.
+The sandbox engine scans 31 deterministic test wallets from `targets/sandbox_wallets.json`. Their keys are public test fixtures with no value; they are never logged or transmitted.
 
 ```bash
 pip install -r requirements-sandbox.txt
@@ -41,7 +41,7 @@ pip install -r requirements-sandbox.txt
 Run the client with the sandbox engine:
 
 ```bash
-PYTHONPATH=. python3 -m worker.client --engine sandbox --target-id 1 --range-start 0 --range-end 99
+PYTHONPATH=. python3 -m worker.client --engine sandbox --target-id 1 --range-start 0 --range-end 199
 ```
 
 ### Connecting an authorized algorithm

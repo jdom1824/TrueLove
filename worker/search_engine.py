@@ -14,15 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-SANDBOX_TARGETS_PATH = Path(__file__).parent.parent / "targets" / "sandbox_targets.json"
-
-# Deterministic seed for the sandbox test wallet.
-# This is a PUBLIC constant used ONLY for reproducible sandbox testing.
-# The derived private key is never stored, logged, or transmitted.
-_SANDBOX_SEED = b"truelove-sandbox-test-target-2024"
-_SANDBOX_SALT = b"truelove-sandbox"
-_SANDBOX_KDF_ITERATIONS = 100_000
-
+SANDBOX_WALLETS_PATH = Path(__file__).parent.parent / "targets" / "sandbox_wallets.json"
 
 @dataclass(frozen=True)
 class SearchResult:
@@ -48,11 +40,11 @@ class DemoSearchEngine(SearchEngine):
         return SearchResult(operations, end, digest)
 
 
-def _load_sandbox_targets() -> list[str]:
-    if not SANDBOX_TARGETS_PATH.exists():
+def _load_sandbox_wallets() -> dict[int, dict[str, str]]:
+    if not SANDBOX_WALLETS_PATH.exists():
         return []
-    data = json.loads(SANDBOX_TARGETS_PATH.read_text())
-    return [t["address"].lower() for t in data.get("targets", [])]
+    data = json.loads(SANDBOX_WALLETS_PATH.read_text())
+    return {int(t["candidateIndex"]): t for t in data.get("targets", [])}
 
 
 def _derive_sandbox_address() -> str:
@@ -61,9 +53,8 @@ def _derive_sandbox_address() -> str:
     The private key exists only ephemerally during derivation and is never
     stored, logged, printed, or transmitted.
     """
-    key_bytes = hashlib.pbkdf2_hmac(
-        "sha256", _SANDBOX_SEED, _SANDBOX_SALT, _SANDBOX_KDF_ITERATIONS
-    )
+    wallets = _load_sandbox_wallets()
+    key_bytes = bytes.fromhex(wallets[min(wallets)]["privateKey"][2:])
     try:
         from eth_account import Account
         account = Account.from_key(key_bytes)
@@ -78,15 +69,15 @@ def _derive_sandbox_address() -> str:
 class SandboxSearchEngine(SearchEngine):
     """Controlled sandbox engine with a deterministic test wallet.
 
-    - Uses a fixed seed to derive a test wallet address.
-    - The private key is derived ephemerally and never stored.
-    - Compares the derived address against sandbox_targets.json.
+    - Uses a public fixture containing 31 valueless test wallets.
+    - Scans candidate indexes in the assigned range.
+    - The private key is read ephemerally and never sent or logged.
     - Produces valid proof digests compatible with the coordinator.
     """
 
     def __init__(self) -> None:
         self._sandbox_address = _derive_sandbox_address()
-        self._sandbox_targets = _load_sandbox_targets()
+        self._sandbox_wallets = _load_sandbox_wallets()
 
     @property
     def address(self) -> str:
@@ -97,10 +88,18 @@ class SandboxSearchEngine(SearchEngine):
         if start < 0 or end < start:
             raise ValueError("invalid search range")
         operations = end - start + 1
-        digest = hashlib.sha256(f"{challenge}:{start}:{end}:{operations}".encode()).hexdigest()
         match_address: str | None = None
-        if self._sandbox_address.lower() in self._sandbox_targets:
-            match_address = self._sandbox_address
+        for candidate in range(start, end + 1):
+            fixture = self._sandbox_wallets.get(candidate)
+            if fixture is not None:
+                try:
+                    from eth_account import Account
+                    address = Account.from_key(bytes.fromhex(fixture["privateKey"][2:])).address
+                except ImportError as error:
+                    raise ImportError("eth_account is required for SandboxSearchEngine") from error
+                if address.lower() == fixture["address"].lower():
+                    match_address = address
+        digest = hashlib.sha256(f"{challenge}:{start}:{end}:{operations}".encode()).hexdigest()
         return SearchResult(operations, end, digest, match_address)
 
 
