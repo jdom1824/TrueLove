@@ -36,12 +36,12 @@ def main() -> None:
     parser.add_argument("--range-end", type=int, default=999)
     parser.add_argument("--engine", choices=("demo", "sandbox", "user"), default="demo")
     args = parser.parse_args()
-    engines = {
-        "demo": DemoSearchEngine,
-        "sandbox": SandboxSearchEngine,
-        "user": UserSearchEngine,
-    }
-    engine = engines[args.engine]()
+    if args.engine == "demo":
+        engine = DemoSearchEngine()
+    elif args.engine == "sandbox":
+        engine = SandboxSearchEngine(target_id=args.target_id)
+    else:
+        engine = UserSearchEngine()
     result = run_once(args.url, args.node_id, engine, args.target_id,
                       args.range_start, args.range_end)
     print(json.dumps(result, indent=2))

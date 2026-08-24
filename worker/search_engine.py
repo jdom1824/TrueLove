@@ -75,9 +75,10 @@ class SandboxSearchEngine(SearchEngine):
     - Produces valid proof digests compatible with the coordinator.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, target_id: int = 1) -> None:
         self._sandbox_address = _derive_sandbox_address()
         self._sandbox_wallets = _load_sandbox_wallets()
+        self._target_id = target_id
 
     @property
     def address(self) -> str:
@@ -91,7 +92,7 @@ class SandboxSearchEngine(SearchEngine):
         match_address: str | None = None
         for candidate in range(start, end + 1):
             fixture = self._sandbox_wallets.get(candidate)
-            if fixture is not None:
+            if fixture is not None and int(fixture["id"]) == self._target_id:
                 try:
                     from eth_account import Account
                     address = Account.from_key(bytes.fromhex(fixture["privateKey"][2:])).address
