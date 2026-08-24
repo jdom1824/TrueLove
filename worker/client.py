@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from .search_engine import DemoSearchEngine, SearchEngine
+from .search_engine import DemoSearchEngine, SandboxSearchEngine, SearchEngine, UserSearchEngine
 from .simulator import post
 
 
@@ -19,8 +19,10 @@ def run_once(base_url: str, node_id: str, engine: SearchEngine, target_id: int =
     result = engine.search(job["challenge"], job["rangeStart"], job["rangeEnd"])
     proof = post(base_url, "/api/proofs", {
         "jobId": job["jobId"], "nodeId": node_id,
+        "rangeStart": job["rangeStart"], "rangeEnd": job["rangeEnd"],
         "counter": result.operations - 1, "operations": result.operations,
         "resultDigest": result.result_digest,
+        "matchAddress": result.match_address,
     })
     return {"job": job, "result": result.__dict__, "proof": proof}
 
@@ -32,8 +34,15 @@ def main() -> None:
     parser.add_argument("--target-id", type=int, default=1)
     parser.add_argument("--range-start", type=int, default=0)
     parser.add_argument("--range-end", type=int, default=999)
+    parser.add_argument("--engine", choices=("demo", "sandbox", "user"), default="demo")
     args = parser.parse_args()
-    result = run_once(args.url, args.node_id, DemoSearchEngine(), args.target_id,
+    engines = {
+        "demo": DemoSearchEngine,
+        "sandbox": SandboxSearchEngine,
+        "user": UserSearchEngine,
+    }
+    engine = engines[args.engine]()
+    result = run_once(args.url, args.node_id, engine, args.target_id,
                       args.range_start, args.range_end)
     print(json.dumps(result, indent=2))
 

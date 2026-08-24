@@ -26,12 +26,16 @@ work function.
 {
   "jobId": "job-...",
   "nodeId": "computer-01",
+  "rangeStart": 1000,
+  "rangeEnd": 5999,
   "counter": 5000,
   "operations": 5001,
-  "resultDigest": "sha256(challenge + ':' + counter)"
+  "resultDigest": "sha256(challenge + ':' + rangeStart + ':' + rangeEnd + ':' + operations)",
+  "matchAddress": null
 }
 ```
 
-The coordinator recomputes the digest from the job challenge and rejects a
-wrong digest, a counter outside the declared work, duplicate proofs, and
-expired or misassigned jobs.
+The coordinator recomputes the digest from the job challenge and range. It
+rejects a wrong digest, a counter outside the declared work, overlapping
+ranges, duplicate proofs, and expired or misassigned jobs. A match address is
+public metadata only; it is never a private key.

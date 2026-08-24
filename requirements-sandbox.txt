@@ -1,0 +1,3 @@
+# Sandbox dependencies for TrueLove Search Engine
+# Install with: pip install -r requirements-sandbox.txt
+eth-account>=0.11.0

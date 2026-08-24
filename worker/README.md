@@ -14,3 +14,12 @@ Run the safe integration client:
 ```bash
 python3 -m worker.client --target-id 17 --range-start 100 --range-end 109
 ```
+
+To call the user algorithm boundary instead:
+
+```bash
+python3 -m worker.client --engine user --target-id 17 --range-start 100 --range-end 109
+```
+
+This mode intentionally stops with `UserSearchEngine is not configured` until
+the implementation of `search()` is supplied.

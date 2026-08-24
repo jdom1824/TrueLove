@@ -24,17 +24,21 @@ def post(base_url: str, path: str, body: dict) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def deterministic_work(challenge: str, operations: int) -> tuple[int, str]:
+def deterministic_work(challenge: str, start: int, end: int) -> tuple[int, str]:
+    operations = end - start + 1
     counter = operations - 1
-    digest = hashlib.sha256(f"{challenge}:{counter}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{challenge}:{start}:{end}:{operations}".encode("utf-8")).hexdigest()
     return counter, digest
 
 
 def run_once(base_url: str, node_id: str, target_id: int = 1, operations: int = 5) -> dict:
     post(base_url, "/api/heartbeat", {"nodeId": node_id})
-    job = post(base_url, "/api/jobs/claim", {"nodeId": node_id, "targetId": target_id})
-    counter, digest = deterministic_work(job["challenge"], operations)
-    proof = post(base_url, "/api/proofs", {"jobId": job["jobId"], "nodeId": node_id, "counter": counter, "operations": operations, "resultDigest": digest})
+    job = post(base_url, "/api/jobs/claim", {"nodeId": node_id, "targetId": target_id,
+                                                "rangeStart": 0, "rangeEnd": operations - 1})
+    counter, digest = deterministic_work(job["challenge"], job["rangeStart"], job["rangeEnd"])
+    proof = post(base_url, "/api/proofs", {"jobId": job["jobId"], "nodeId": node_id,
+        "rangeStart": job["rangeStart"], "rangeEnd": job["rangeEnd"],
+        "counter": counter, "operations": operations, "resultDigest": digest})
     return {"job": job, "proof": proof}
 
 

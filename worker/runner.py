@@ -21,6 +21,7 @@ def run_for(base_url: str, node_id: str, duration_seconds: int, target_id: int =
     jobs = 0
     proofs = 0
     verified_operations = 0
+    next_range = 0
 
     while time.monotonic() < deadline:
         now = time.monotonic()
@@ -28,11 +29,16 @@ def run_for(base_url: str, node_id: str, duration_seconds: int, target_id: int =
             post(base_url, "/api/heartbeat", {"nodeId": node_id})
             next_heartbeat = now + heartbeat_interval
 
-        job = post(base_url, "/api/jobs/claim", {"nodeId": node_id, "targetId": target_id})
-        counter, digest = deterministic_work(job["challenge"], operations)
+        range_start = next_range
+        range_end = next_range + operations - 1
+        job = post(base_url, "/api/jobs/claim", {"nodeId": node_id, "targetId": target_id,
+                                                  "rangeStart": range_start, "rangeEnd": range_end})
+        counter, digest = deterministic_work(job["challenge"], job["rangeStart"], job["rangeEnd"])
         post(base_url, "/api/proofs", {
             "jobId": job["jobId"],
             "nodeId": node_id,
+            "rangeStart": job["rangeStart"],
+            "rangeEnd": job["rangeEnd"],
             "counter": counter,
             "operations": operations,
             "resultDigest": digest,
@@ -40,6 +46,7 @@ def run_for(base_url: str, node_id: str, duration_seconds: int, target_id: int =
         jobs += 1
         proofs += 1
         verified_operations += operations
+        next_range = range_end + 1
 
     return {
         "nodeId": node_id,

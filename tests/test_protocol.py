@@ -56,6 +56,8 @@ class ProtocolTests(unittest.TestCase):
                 {
                     "jobId": job["jobId"],
                     "nodeId": "bad-worker",
+                    "rangeStart": 0,
+                    "rangeEnd": 4,
                     "counter": 4,
                     "operations": 5,
                     "resultDigest": hashlib.sha256(b"tampered").hexdigest(),
@@ -74,6 +76,15 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(result["proof"]["accepted"])
         self.assertEqual(result["job"]["rangeStart"], 100)
         self.assertEqual(result["job"]["rangeEnd"], 109)
+
+    def test_overlapping_ranges_are_rejected(self):
+        self.post("/api/heartbeat", {"nodeId": "overlap-a"})
+        self.post("/api/jobs/claim", {"nodeId": "overlap-a", "targetId": 17,
+                                       "rangeStart": 0, "rangeEnd": 9})
+        with self.assertRaises(HTTPError) as error:
+            self.post("/api/jobs/claim", {"nodeId": "overlap-b", "targetId": 17,
+                                           "rangeStart": 9, "rangeEnd": 20})
+        self.assertEqual(error.exception.code, 409)
 
 
 if __name__ == "__main__":

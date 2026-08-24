@@ -4,6 +4,9 @@ True Love is an experimental crypto-art project about an impossible search: a pu
 
 ```text
 coordinator/     Raspberry Pi coordinator for the MVP
+worker/          Search engine boundary and client
+targets/         Public target addresses and sandbox test targets
+tests/           Protocol and sandbox integration tests
 docs/            Architecture, protocol and operations
 ```
 
@@ -17,6 +20,39 @@ docs/            Architecture, protocol and operations
 - SQLite is the first coordinator database; the protocol is designed to migrate to Radxa or a larger server.
 - The system never asks participants for private keys or seed phrases.
 
+## Search engines
+
+The worker supports three pluggable engines via `--engine`:
+
+| Engine     | Description                                            |
+|------------|--------------------------------------------------------|
+| `demo`     | Deterministic hash exercise. Safe, no wallets.         |
+| `sandbox`  | Test wallet with coordinator integration. For local dev. |
+| `user`     | Locked interface for a future authorized implementation. |
+
+### Sandbox engine
+
+The sandbox engine derives a deterministic test wallet address using PBKDF2 + eth_account. The private key is never stored, logged, or transmitted.
+
+```bash
+pip install -r requirements-sandbox.txt
+```
+
+Run the client with the sandbox engine:
+
+```bash
+PYTHONPATH=. python3 -m worker.client --engine sandbox --target-id 1 --range-start 0 --range-end 99
+```
+
+### Connecting an authorized algorithm
+
+To connect a new search algorithm:
+
+1. Create a class inheriting from `SearchEngine` in `worker/search_engine.py`.
+2. Implement the `search` method returning a `SearchResult`.
+3. Register it in `worker/client.py` by adding a new `--engine` choice.
+4. Never persist or transmit private keys; return only public match data.
+
 ## Run the coordinator locally
 
 ```bash
@@ -24,6 +60,16 @@ python3 -m coordinator
 ```
 
 The coordinator defaults to `http://127.0.0.1:8787` and creates its SQLite database under `coordinator/data/`.
+
+## Run tests
+
+```bash
+# Compile check
+python3 -m py_compile coordinator/server.py worker/*.py tests/test_protocol.py tests/test_sandbox.py
+
+# Run all tests
+PYTHONPATH=. python3 -m unittest discover -s tests -v
+```
 
 ## Documentation
 

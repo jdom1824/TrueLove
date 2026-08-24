@@ -64,6 +64,7 @@ def init_db():
                 counter INTEGER NOT NULL,
                 operations INTEGER NOT NULL,
                 result_digest TEXT NOT NULL,
+                match_address TEXT,
                 submitted_at REAL NOT NULL,
                 status TEXT NOT NULL
             );
@@ -73,6 +74,8 @@ def init_db():
         columns = {row[1] for row in connection.execute("PRAGMA table_info(proofs)")}
         if "counter" not in columns:
             connection.execute("ALTER TABLE proofs ADD COLUMN counter INTEGER NOT NULL DEFAULT 0")
+        if "match_address" not in columns:
+            connection.execute("ALTER TABLE proofs ADD COLUMN match_address TEXT")
         columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
         if "range_start" not in columns:
             connection.execute("ALTER TABLE jobs ADD COLUMN range_start INTEGER NOT NULL DEFAULT 0")
@@ -159,11 +162,20 @@ class Handler(BaseHTTPRequestHandler):
         job_id = f"job-{secrets.token_hex(8)}"
         challenge = secrets.token_hex(32)
         target_id = int(data.get("targetId", (int(now) % 31) + 1))
+        if target_id < 1 or target_id > 31:
+            raise ValueError("invalid targetId")
         range_start = int(data.get("rangeStart", 0))
         range_end = int(data.get("rangeEnd", range_start + 999))
         if range_start < 0 or range_end < range_start or range_end - range_start > 10_000_000:
             raise ValueError("invalid search range")
         with db() as connection:
+            overlap = connection.execute(
+                "SELECT 1 FROM jobs WHERE target_id=? AND status IN ('assigned', 'accepted') "
+                "AND range_start <= ? AND range_end >= ? LIMIT 1",
+                (target_id, range_end, range_start),
+            ).fetchone()
+            if overlap:
+                return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "search range already assigned"})
             connection.execute(
                 "INSERT INTO nodes(node_id, first_seen, last_seen, jobs_claimed) VALUES (?, ?, ?, 1) "
                 "ON CONFLICT(node_id) DO UPDATE SET last_seen=?, jobs_claimed=jobs_claimed+1",
@@ -186,23 +198,33 @@ class Handler(BaseHTTPRequestHandler):
         counter = int(data["counter"])
         operations = int(data["operations"])
         digest = str(data["resultDigest"])
-        if counter < 0 or operations <= 0 or counter + 1 != operations or not digest or len(digest) > 256:
+        range_start = int(data["rangeStart"])
+        range_end = int(data["rangeEnd"])
+        raw_match_address = data.get("matchAddress")
+        match_address = str(raw_match_address).strip() if raw_match_address else None
+        if (range_start < 0 or range_end < range_start or operations <= 0
+                or operations != range_end - range_start + 1
+                or counter != operations - 1 or not digest or len(digest) > 256):
             raise ValueError("invalid proof")
+        if match_address is not None and (len(match_address) != 42 or not match_address.lower().startswith("0x")):
+            raise ValueError("invalid matchAddress")
         now = time.time()
         with db() as connection:
             job = connection.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
             if not job or job["node_id"] != node_id or job["expires_at"] < now:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "job invalid or expired"})
-            expected = __import__("hashlib").sha256(
-                f"{job['challenge']}:{counter}".encode("utf-8")
+            if range_start != job["range_start"] or range_end != job["range_end"]:
+                return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof range does not match job"})
+            expected = hashlib.sha256(
+                f"{job['challenge']}:{range_start}:{range_end}:{operations}".encode("utf-8")
             ).hexdigest()
             if digest != expected:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof digest invalid"})
             try:
                 connection.execute(
-                    "INSERT INTO proofs(job_id, node_id, counter, operations, result_digest, submitted_at, status) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 'accepted')",
-                    (job_id, node_id, counter, operations, digest, now),
+                    "INSERT INTO proofs(job_id, node_id, counter, operations, result_digest, match_address, submitted_at, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted')",
+                    (job_id, node_id, counter, operations, digest, match_address, now),
                 )
             except sqlite3.IntegrityError:
                 return self.send_json(HTTPStatus.CONFLICT, {"accepted": False, "error": "proof already submitted"})
@@ -211,7 +233,7 @@ class Handler(BaseHTTPRequestHandler):
                 "UPDATE nodes SET proofs_accepted=proofs_accepted+1, operations=operations+?, last_seen=? WHERE node_id=?",
                 (operations, now, node_id),
             )
-        return self.send_json(HTTPStatus.OK, {"accepted": True, "jobId": job_id})
+        return self.send_json(HTTPStatus.OK, {"accepted": True, "jobId": job_id, "matchAddress": match_address})
 
 
 def main():
