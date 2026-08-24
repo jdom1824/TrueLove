@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from coordinator import server
+from worker.runner import run_for
 from worker.simulator import run_once
 
 
@@ -59,6 +60,11 @@ class ProtocolTests(unittest.TestCase):
                 },
             )
         self.assertEqual(error.exception.code, 409)
+
+    def test_runner_completes_multiple_jobs(self):
+        result = run_for(self.url, "runner-test", duration_seconds=1, operations=2, heartbeat_interval=1)
+        self.assertGreater(result["jobs"], 0)
+        self.assertEqual(result["jobs"], result["proofs"])
 
 
 if __name__ == "__main__":
