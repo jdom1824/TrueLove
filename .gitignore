@@ -10,3 +10,11 @@ __pycache__/
 build/
 dist/
 *.pyc
+
+# The public landing is maintained and deployed separately.
+/dashboard/
+/Api/
+.DS_Store
+desktop.ini
+.vscode/
+TrueLove.tar
