@@ -16,6 +16,11 @@ worker -> POST /api/proofs
 The current work function is a safe test function: it hashes the coordinator's
 challenge with a counter. It is not the real wallet-search algorithm.
 
+The worker creates a separate Ed25519 identity key for this test. It publishes
+the public key in the heartbeat and signs the proof payload. This identity key
+is unrelated to Ethereum wallets and is never used to search for or control
+funds.
+
 ## Proof
 
 ```json
@@ -25,6 +30,7 @@ challenge with a counter. It is not the real wallet-search algorithm.
   "counter": 5000,
   "operations": 5001,
   "resultDigest": "sha256(challenge + ':' + counter)"
+  ,"signature": "base64(ed25519-signature)"
 }
 ```
 

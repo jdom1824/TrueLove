@@ -7,10 +7,13 @@ or handle private keys.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import time
 from urllib.request import Request, urlopen
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 
 def post(base_url: str, path: str, body: dict) -> dict:
@@ -31,20 +34,16 @@ def deterministic_work(challenge: str, operations: int) -> tuple[int, str]:
 
 
 def run_once(base_url: str, node_id: str, target_id: int = 1, operations: int = 5) -> dict:
-    post(base_url, "/api/heartbeat", {"nodeId": node_id})
+    private_key = Ed25519PrivateKey.generate()
+    public_key = base64.b64encode(
+        private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    ).decode("ascii")
+    post(base_url, "/api/heartbeat", {"nodeId": node_id, "publicKey": public_key})
     job = post(base_url, "/api/jobs/claim", {"nodeId": node_id, "targetId": target_id})
     counter, digest = deterministic_work(job["challenge"], operations)
-    proof = post(
-        base_url,
-        "/api/proofs",
-        {
-            "jobId": job["jobId"],
-            "nodeId": node_id,
-            "counter": counter,
-            "operations": operations,
-            "resultDigest": digest,
-        },
-    )
+    unsigned = {"jobId": job["jobId"], "nodeId": node_id, "counter": counter, "operations": operations, "resultDigest": digest}
+    message = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    proof = post(base_url, "/api/proofs", {**unsigned, "signature": base64.b64encode(private_key.sign(message)).decode("ascii")})
     return {"job": job, "proof": proof}
 
 
